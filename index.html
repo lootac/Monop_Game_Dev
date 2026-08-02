@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Monopoly — vs AI</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+  <div id="board-wrap">
+    <div id="board"></div>
+  </div>
+
+  <div id="sidebar">
+    <div id="players"></div>
+
+    <div id="controls">
+      <div id="dice-area">
+        <div id="dice">
+          <div class="die" id="die1">-</div>
+          <div class="die" id="die2">-</div>
+        </div>
+        <button id="roll-btn">Roll Dice</button>
+      </div>
+      <div id="action-area"></div>
+      <button id="manage-btn" class="secondary" disabled>Manage Properties</button>
+      <button id="trade-btn" class="secondary" disabled>Propose Trade</button>
+      <button id="end-turn-btn" disabled>End Turn</button>
+    </div>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<div id="modal-backdrop" class="hidden">
+  <div id="modal">
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div id="modal-actions"></div>
+  </div>
+</div>
+
+<script src="data.js?cachebust1"></script>
+<script src="app.js?cachebust1"></script>
+</body>
+</html>

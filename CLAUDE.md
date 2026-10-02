@@ -4,6 +4,10 @@
 
 A browser-based Monopoly game (US board) in vanilla JavaScript: no framework, no build step, no dependencies, no tests. One human player ("You") plays against three AI opponents. Rules include buying, auctions on declined properties, even-build houses/hotels with a limited bank supply (32 houses / 12 hotels), mortgaging, Chance/Community Chest, jail, Income Tax ($200 or 10% of net worth), trading with counter-offers, and bankruptcy.
 
+There are two versions of the game:
+- **Multi-file version** (`index.html` + `data.js` + `app.js` + `style.css`): the base game.
+- **`monopoly.html`**: a self-contained single file with all CSS and JS inline. It has the same game plus the **Books** panel (double-entry accounting) and the **Game Advisor**. Its game logic is a modified copy of `app.js`, not a shared module, so a fix to the base game has to be made in both places.
+
 ## Files
 
 - `index.html` — Static layout: `#board`, `#sidebar` (`#players`, dice, Roll / Manage Properties / Propose Trade / End Turn buttons, `#action-area`), `#log`, and one shared `#modal`. Loads `data.js` then `app.js` as plain `<script>` tags with a `?cachebust1` query string.
@@ -11,6 +15,7 @@ A browser-based Monopoly game (US board) in vanilla JavaScript: no framework, no
 - `app.js` — All game logic and rendering, split into banner-commented sections: State, DOM refs, Small utilities, Modal helpers, Trade UI, Rendering, Movement & space resolution, Building, Auctions, Trading, AI logic, Turn engine, Init. Ends with `init()`.
 - `style.css` — Dark theme, an 11×11 CSS grid board (758px square), sidebar, log and modal styles.
 - `serve.py` — Python dev server (`http.server`) that sends no-cache headers so edits appear on a normal refresh.
+- `monopoly.html` — The single-file version with Books and the Advisor (see below). It contains a `<style>` block, a data `<script>` (a copy of `data.js`) and a game `<script>` (an extended `app.js`). It adds Open Books / Ask Advisor buttons, and its `chargePlayer` takes an extra `category` argument (an expense account key, default `'fees'`) so each payment posts a journal entry.
 - `HANDOFF.md` — A verbatim copy of every source file, made for a past session handoff. It is not used at runtime and goes stale when the sources change.
 
 ## Running locally
@@ -20,7 +25,7 @@ python3 serve.py          # http://localhost:8843
 python3 serve.py 9000     # custom port
 ```
 
-Opening `index.html` directly also works, since there are no modules or fetches.
+Then open `/` (multi-file version) or `/monopoly.html` (Books version). Opening either file directly also works, since there are no modules and no local fetches. The Advisor does need network access to `api.anthropic.com`.
 
 ## Architecture notes
 
@@ -45,6 +50,20 @@ Each AI's behavior comes from `AI_PROFILES` in `app.js`, keyed by player id:
 - **Auctions** (`aiBidAmount`): bids up to `price × auctionFactor`, always keeping at least $50 in cash.
 - **Trading** (`aiConsiderTrade`, end of turn): tries to buy the missing pieces of a color group held by one other player, offering about `value × auctionFactor`. If cash drops below `cashFloor`, it offers a lone property for 90% of its price. When responding to offers (`aiDecideOnOffer`), it accepts if net value ≥ 0. Otherwise it counters by asking for more cash, for up to `TRADE_ROUND_CAP` (4) rounds.
 - Income Tax: the AI always pays the cheaper of the two options.
+
+## Books panel (`monopoly.html` only)
+
+Double-entry accounting for the human player (id 0, `HUMAN_ID`) only, at historical cost.
+
+- **Chart of accounts** (`ACCOUNTS`): assets (1000 Cash, 1100 Real Estate, 1200 Improvements), a liability (2000 Mortgages Payable), equity (3000 Owner's Capital, 3100 Retained Earnings), revenue (4000 GO Salary, 4100 Rent Income, 4200 Windfall, 4300 Gain on Disposal) and expenses (5000 Rent, 5100 Tax, 5200 Interest, 5300 Fees & Penalties, 5400 Loss on Disposal).
+- **Posting**: every event that moves value calls a `bk*` helper (`bkOpening`, `bkGo`, `bkBuy`, `bkAuctionWin`, `bkBuild`, `bkUnmortgage`, `bkCharge`, …). Each helper calls `post(desc, lines, opts)` with `{acct, dr, cr}` lines. `post` updates `books.bal` (debits minus credits), appends to `books.entries`, shows a toast, and re-renders the open panel or window. `books.basis[i]` tracks each property's cost so sales, trades and bankruptcy can book a gain or loss.
+- **Periods**: one round (each player's turn once) is one game-month. `booksAdvancePeriod()` runs at the start of the human's turn; the first call posts the opening entry (Dr Cash 1500 / Cr Capital 1500). After every 12th month, `runYearEndClose` closes revenue and expense accounts into Retained Earnings. Periods are labeled `Y1-M01`.
+- **Panel** (shared modal, `books-mode`): Journal, Ledger (T-accounts) and Statements tabs. Statements show the Balance Sheet, Income Statement and Cash Flow (operating / investing / financing), worked out by replaying the journal up to a chosen month (`computeStatements`). The game-over modal also has a View Books button.
+- **Spreadsheet**: "Open Live Spreadsheet" opens a pop-up window styled like a workbook that updates as entries post. "Download Excel" builds a real `.xlsx` with no library (hand-written OOXML plus a stored zip, `sheetsToXlsxBlob`). Both have seven sheets: Chart of Accounts, Journal, Ledger, Trial Balance, Balance Sheet, Profit & Loss, Cash Flow. `lineReason` adds a plain-English explanation of why each line is a debit or a credit.
+
+## Game Advisor (`monopoly.html` only)
+
+"Ask Advisor" sends a text summary of the game state (`advisorGameStateText`) to the Anthropic Messages API, calling it directly from the browser with the `anthropic-dangerous-direct-browser-access` header, and shows the coaching it returns. The player provides their own API key. The key and the chosen model (`ADVISOR_MODELS`) are saved in `localStorage` (`monopoly_advisor_key`, `monopoly_advisor_model`).
 
 ## Conventions
 
